@@ -1,7 +1,8 @@
+import telegram
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import ConversationHandler
 import settings
-from services import finnhub_connection
+from services import FunnhubService
 import json
 import time
 import logging
@@ -13,6 +14,10 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
                     level=logging.INFO)
 
 logger = logging.getLogger(__name__)
+finnhub = FunnhubService()
+
+
+# TODO: add admin commands
 
 
 def error_handler(update, context):
@@ -38,24 +43,32 @@ def skip_ticker(update, context):
 
 
 def parse_reply_item(reply_item):
-    reply_string = f"Date: {reply_item['date']} Ticker: {reply_item['symbol']}"
+    name = json.loads(finnhub.get_name_by_ticker(reply_item['symbol'])).get('name')
+    reply_string = f"<b>Date</b>: {reply_item['date']} <b>Name</b>: {name} <b>Ticker</b>: {reply_item['symbol']}"
     return reply_string
 
 
+# TODO add report with csv, xml whatever
 def processing(update, context):
     if update.message.text != '/skip':
         context.user_data[update.message.from_user.id].update({'ticker': update.message.text})
 
     update.message.reply_text('Start processing. Wait for a while.')
-    reply = json.loads(finnhub_connection(
+    reply = json.loads(finnhub.get_earnings(
         period=context.user_data[update.message.from_user.id]['period'],
         ticker=context.user_data[update.message.from_user.id].get('ticker')
     ))['earningsCalendar']
+    items_count = len(reply)
 
-    if len(reply) != 0:
+    if items_count < 59:
+        timeout = settings.TIMEOUT_SMALL
+    else:
+        timeout = settings.TIMEOUT_BIG
+
+    if items_count != 0:
         for item in reply:
-            update.message.reply_text(parse_reply_item(item))
-            time.sleep(0.1)
+            update.message.reply_text(parse_reply_item(item), parse_mode=telegram.ParseMode.HTML)
+            time.sleep(timeout)
 
     update.message.reply_text(f'Your report is ready. {len(reply)} items.')
     return ConversationHandler.END
