@@ -1,3 +1,5 @@
+settings.py
+local.py
 .env
 .idea
 __pycache__/
