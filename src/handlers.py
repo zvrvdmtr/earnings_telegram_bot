@@ -6,6 +6,8 @@ from services import FunnhubService
 import json
 import time
 import logging
+import csv
+import os
 
 PERIOD = ['Year', 'Month', 'Week', 'Day']
 
@@ -44,12 +46,19 @@ def skip_ticker(update, context):
 
 def parse_reply_item(reply_item):
     name = json.loads(finnhub.get_name_by_ticker(reply_item['symbol'])).get('name')
+    generate_report(f"{reply_item['date']},{name},{reply_item['symbol']}".split(','))
     reply_string = f"<b>Date</b>: {reply_item['date']} <b>Name</b>: {name} <b>Ticker</b>: {reply_item['symbol']}"
     return reply_string
 
 
-# TODO add report with csv, xml whatever
+def generate_report(row):
+    with open('report.csv', 'a') as f:
+        report = csv.writer(f, delimiter=',')
+        report.writerow(row)
+
+
 def processing(update, context):
+    generate_report('testrow')
     if update.message.text != '/skip':
         context.user_data[update.message.from_user.id].update({'ticker': update.message.text})
 
@@ -71,6 +80,7 @@ def processing(update, context):
             time.sleep(timeout)
 
     update.message.reply_text(f'Your report is ready. {len(reply)} items.')
+    update.message.reply_document(document=open('report.csv', 'rb'), filemname='report')
     return ConversationHandler.END
 
 
