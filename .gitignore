@@ -3,3 +3,4 @@ local.py
 .env
 .idea
 __pycache__/
+.csv
